@@ -70,7 +70,7 @@ runcmd:
 
 
   # plugins
-  - sudo -u www-data wp plugin install all-in-one-ap-migration --activate  
+  - sudo -u www-data wp plugin install all-in-one-app-migration --activate  
 
   # wordpress
   # - cd /tmp 
