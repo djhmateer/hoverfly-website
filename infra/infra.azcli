@@ -145,7 +145,7 @@ fi
  # getting all groups with the rgprefix eg BLCCTEST
 groupstodel=$(az group list --query "[?contains(name, '${rgprefix}')]".name --output tsv)
 
-# for rgtodel in $groupstodel
+for rgtodel in $groupstodel
 do
     if [ "$rgtodel" = "$rg" ]; then  
     echo "not deleting $rgtodel as have just created it"
