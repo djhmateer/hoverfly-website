@@ -101,6 +101,8 @@ runcmd:
 
   - sudo systemctl restart apache2
 
+final_message: "The system is finally up, after $UPTIME seconds"
+
   #
   # Bashtop
   #
