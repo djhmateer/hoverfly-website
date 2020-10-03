@@ -1,7 +1,7 @@
 #cloud-config
 # /var/log/cloud-init-output.log - cloud init logs (this script)
 
-# /etc/apache2/sites-enabled
+# /etc/apache2/sites-available
 # /var/www/html
 # sudo systemctl restart apache
 
@@ -13,7 +13,7 @@ runcmd:
   - sudo apt update -y
   - sudo apt install apache2 -y
 
-  #
+  # get helper files from repo
   - cd /home/dave
   - sudo git clone https://github.com/djhmateer/hoverfly-website.git source
 
@@ -26,39 +26,29 @@ runcmd:
   - sudo mysql -e "CREATE DATABASE wordpress;"
   - sudo mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY 'password';"
   - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost' IDENTIFIED BY 'password';"
-  # - sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';"
 
   # php
   - sudo apt install php libapache2-mod-php php-mysql -y
 
-  # prefer .php over .html
-  # copy dir.conf
-  # /etc/apache2/mods-enabled/dir.conf
-
-  # - sudo systemctl restart apache2
-  # - sudo systemctl status apache2
-
   # - sudo apt install php-cli
 
-  # test **interesting that <? didn't work - short tags
-#   - vim /var/www/html/info.php
-# <?php
-# phpinfo();
-# ?>
+  # info.php and delete the apache default index.html
+  - sudo cp /home/dave/source/infra/info.php /var/www/html
+  - sudo rm /var/www/html/index.html
+
   - sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
   - sudo systemctl restart apache2
 
   # /etc/apache2/sites-available/000-default.conf
   # /var/www/wordpress doc root
   # AllowOverride
+  - sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
 
   - sudo a2enmod rewrite
 
   # checks for syntax errors in apache conf
   - sudo apache2ctl configtest
   - sudo systemctl restart apache2
-
-  - sudo rm /var/www/html/index.html
 
   # wordpress
   - cd /tmp 
@@ -80,15 +70,14 @@ runcmd:
   # - curl -s https://api.wordpress.org/secret-key/1.1/salt/
   # - sudo nano /var/www/wordpress/wp-config.php
 
- # /etc/php/7.2/apache2/php.ini 
- # update 
- # memory_limit = 256M
- # post_max_size = 512M 
- # upload_max_filesize = 512M
+  # settings needed for wp all in one website import
+  - sudo echo 'php_value upload_max_filesize = 512MB' >> /var/www/html/.htaccess
+  - sudo echo 'php_value post_max_size = 512MB' >> /var/www/html/.htaccess
+  - sudo echo 'php_value memory_limit = 256MB' >> /var/www/html/.htaccess
+  - sudo echo 'php_value max_execution_time = 300' >> /var/www/html/.htaccess
+  - sudo echo 'php_value max_input_time = 300' >> /var/www/html/.htaccess
 
-
-
-
+  - sudo systemctl restart apache2
   #
   # Bashtop
   #
