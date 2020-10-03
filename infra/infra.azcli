@@ -1,0 +1,168 @@
+#!/bin/bash
+# run from linux
+# eg WSL
+# make sure the line endings are LF ie unix style
+# if you get weird errors, this is probably the case
+# see here for a fix:  https://davemateer.com/2020/01/09/Line-endings-ignore-in-Git
+# run from the WSL side
+# sed -i 's/\r$//' *.sh
+# logging - could use the run.sh file here... but will output the private keys which am not keen on
+
+# activate script debugging from here
+set -x
+
+# generate a random suffix between 1 and 1000
+int=$(shuf -i 1-1000 -n 1)
+# Password must have the 3 of the following: 1 lower case character, 1 upper case character, 1 number and 1 special character
+# generate a 34 character password (normal, capitals and numbers)
+password=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c34)
+
+rgprefix=HoverflyTEST
+# don't put capitals in dns name below and it needs to be unique (ie not used in azure at the moment)
+dnsname=hoverflytest${int}
+
+rg=${rgprefix}${int}
+adminusername=azureuser${int}
+adminpassword=${password}
+
+region=westeurope
+# vmname=postgrescookiedavetest${int}
+vmname=${dnsname}
+vnet=vnet${int}
+subnet=subnet${int}
+publicIPName=publicIP${int}
+nsgname=nsg${int}
+nicName=nic${int}
+# use current LTS Version of Ubuntu - 18.04.3 as of 8th Nov 2019
+image=UbuntuLTS
+
+# Create a resource group
+az group create \
+   --name ${rg} \
+   --location ${region}
+
+# Create a virtual network
+az network vnet create \
+    --resource-group ${rg} \
+    --name ${vnet} \
+    --subnet-name ${subnet} 
+
+# Create a network with a public IP and associate with the given DNS name
+az network public-ip create \
+    --resource-group ${rg} \
+    --name ${publicIPName} \
+    --dns-name ${dnsname}
+    #--allocation-method Static \
+
+# Create a nework security group
+az network nsg create \
+    --resource-group ${rg} \
+    --name ${nsgname}
+
+# allow port 22 ssh
+az network nsg rule create \
+    --resource-group ${rg} \
+    --nsg-name ${nsgname} \
+    --name nsgGroupRuleSSH \
+    --protocol tcp \
+    --priority 1000 \
+    --destination-port-range 22 \
+    --access allow
+
+# allow port 80
+az network nsg rule create \
+    --resource-group ${rg} \
+    --nsg-name ${nsgname} \
+    --name nsgGroupRuleWeb80 \
+    --protocol tcp \
+    --priority 1001 \
+    --destination-port-range 80 \
+    --access allow
+
+# allow port 443
+az network nsg rule create \
+    --resource-group ${rg} \
+    --nsg-name ${nsgname} \
+    --name nsgGroupRuleWeb443 \
+    --protocol tcp \
+    --priority 1002 \
+    --destination-port-range 443 \
+    --access allow
+
+# Create a virtual network card and associate with publicIP address and NSG
+az network nic create \
+    --resource-group ${rg} \
+    --name ${nicName} \
+    --vnet-name ${vnet} \
+    --subnet ${subnet} \
+    --public-ip-address ${publicIPName} \
+    --network-security-group ${nsgname}
+
+# Create vm which runs the cloud init script to provision 
+# Standard_DS1_v2 is the default
+# https://azure.microsoft.com/en-gb/pricing/details/virtual-machines/linux/
+# https://docs.microsoft.com/en-us/azure/virtual-machines/linux/sizes-general
+
+# If one of my keys exist 
+filename="../secrets/sshkey-homelenovo.pub"
+if [ -f "$filename" ]; then
+az vm create \
+    --resource-group ${rg} \
+    --name ${vmname} \
+    --location ${region} \
+    --nics ${nicName} \
+    --image ${image} \
+    --ssh-key-values ../secrets/sshkey-homelenovo.pub ../secrets/sshkey-work.pub ../secrets/sshkey-homedesktop.pub \
+    --custom-data cloud-init.yaml \
+    --size Standard_B1s # £5.65
+    #--size Standard_B2s # £22.63
+
+    #--size Standard_B1s # £5.65
+    # --size Standard_B1LS  # £2.82
+    # --size Standard_B1s # £5.65
+    # --size Standard_B1ms # £11.26
+    # --size Standard_B2s # £22.63
+    # --size Standard_B2ms # £45
+else
+# no ssh keys found so could use username and password or ssh-keys
+az vm create \
+    --resource-group ${rg} \
+    --name ${vmname} \
+    --location ${region} \
+    --nics ${nicName} \
+    --image ${image} \
+    --custom-data cloud-init.yaml \
+    --size Standard_B1s
+    #--generate-ssh-keys \
+    # above means we will use a generated ssh key from this machine
+    # --admin-username ${adminusername} \
+    # --admin-password ${adminpassword}
+fi
+
+# delete old resource groups
+# https://techcommunity.microsoft.com/t5/itops-talk-blog/how-to-query-azure-resources-using-the-azure-cli/ba-p/360147
+
+ # getting all groups with the rgprefix eg BLCCTEST
+groupstodel=$(az group list --query "[?contains(name, '${rgprefix}')]".name --output tsv)
+
+for rgtodel in $groupstodel
+do
+    if [ "$rgtodel" = "$rg" ]; then  
+    echo "not deleting $rgtodel as have just created it"
+    else
+    #  Delete the old group(s)
+	az group delete \
+            --name $rgtodel \
+            --no-wait \
+            --yes
+    fi
+done
+
+# # -o is skip are you sure about ssh keys
+echo -e "\nssh -o StrictHostKeyChecking=no dave@${dnsname}.westeurope.cloudapp.azure.com\n"
+
+# make it easy to connect to the vm from windows by creating a bat file
+echo -e "\nssh -o StrictHostKeyChecking=no dave@${dnsname}.westeurope.cloudapp.azure.com\n" > sshCurrentVm.sh
+
+# make it easy to delete resource group at the end of the day from bash
+echo -e "az group delete --name ${rg} --no-wait --yes \n" > delCurrentRg.sh

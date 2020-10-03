@@ -1,0 +1,105 @@
+#cloud-config
+# /var/log/cloud-init-output.log - cloud init logs (this script)
+
+# /etc/apache2/sites-enabled
+# /var/www/html
+# sudo systemctl restart apache
+
+# https://www.journaldev.com/24954/install-wordpress-on-ubuntu  (suggests Maria)
+# https://www.digitalocean.com/community/tutorials/how-to-install-linux-apache-mysql-php-lamp-stack-ubuntu-18-04
+package_upgrade: true
+runcmd:
+  # apache
+  - sudo apt update -y
+  - sudo apt install apache2 -y
+
+  #
+  - cd /home/dave
+  - sudo git clone https://github.com/djhmateer/hoverfly-website.git source
+
+  # mysql
+  - sudo apt install mysql-server -y
+
+  # should i do this?
+  #- sudo mysql_secure_installation
+
+  - sudo mysql -e "CREATE DATABASE wordpress;"
+  - sudo mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY 'password';"
+  - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost' IDENTIFIED BY 'password';"
+  # - sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'password';"
+
+  # php
+  - sudo apt install php libapache2-mod-php php-mysql -y
+
+  # prefer .php over .html
+  # copy dir.conf
+  # /etc/apache2/mods-enabled/dir.conf
+
+  # - sudo systemctl restart apache2
+  # - sudo systemctl status apache2
+
+  # - sudo apt install php-cli
+
+  # test **interesting that <? didn't work - short tags
+#   - vim /var/www/html/info.php
+# <?php
+# phpinfo();
+# ?>
+  - sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
+  - sudo systemctl restart apache2
+
+  # /etc/apache2/sites-available/000-default.conf
+  # /var/www/wordpress doc root
+  # AllowOverride
+
+  - sudo a2enmod rewrite
+
+  # checks for syntax errors in apache conf
+  - sudo apache2ctl configtest
+  - sudo systemctl restart apache2
+
+  - sudo rm /var/www/html/index.html
+
+  # wordpress
+  - cd /tmp 
+  - curl -O https://wordpress.org/latest.tar.gz
+  - tar -xvf latest.tar.gz
+  - sudo cp -a /tmp/wordpress/. /var/www/html
+
+  # - touch /tmp/wordpress/.htaccess
+  # - cp /tmp/wordpress/wp-config-sample.php /tmp/wordpress/wp-config.php
+  # - mkdir /tmp/wordpress/wp-content/upgrade
+  # - sudo cp -a /tmp/wordpress/. /var/www/wordpress
+
+  - sudo chown -R www-data:www-data /var/www/html
+  - sudo chmod -R 755 /var/www/html
+
+  - sudo mkdir /var/www/html/wp-content/uploads
+  - sudo chown -R www-data:www-data /var/www/html/wp-content/uploads/
+
+  # - curl -s https://api.wordpress.org/secret-key/1.1/salt/
+  # - sudo nano /var/www/wordpress/wp-config.php
+
+ # /etc/php/7.2/apache2/php.ini 
+ # update 
+ # memory_limit = 256M
+ # post_max_size = 512M 
+ # upload_max_filesize = 512M
+
+
+
+
+  #
+  # Bashtop
+  #
+  # - echo "deb http://packages.azlux.fr/debian/ buster main" | sudo tee /etc/apt/sources.list.d/azlux.list
+  # - sudo wget -qO - https://azlux.fr/repo.gpg.key | sudo apt-key add -
+  # - sudo apt update -y
+  # - sudo apt install bashtop -y
+
+# make a quick test page to signify that the server is ready to go
+  # - cd /var/www/cookie-dave-web
+  # - echo "Healthy" > healthcheck.html
+
+# OS updates need a reboot 
+  # - sudo reboot now
