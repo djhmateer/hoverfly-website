@@ -5,6 +5,8 @@
 # /var/www/html
 # sudo systemctl restart apache
 
+# scp dave@hoverflytest39.westeurope.cloudapp.azure.com:/home/dave/php.ini .
+
 # https://www.journaldev.com/24954/install-wordpress-on-ubuntu  (suggests Maria)
 # https://www.digitalocean.com/community/tutorials/how-to-install-linux-apache-mysql-php-lamp-stack-ubuntu-18-04
 package_upgrade: true
@@ -75,6 +77,10 @@ runcmd:
   # - sudo nano /var/www/wordpress/wp-config.php
 
   # settings needed for wp all in one website import
+  - cd /etc/php/7.2/apache2
+  - sudo cp php.ini phpoldini.txt
+  - sudo cp /home/dave/source/infra/php.ini /etc/php/7.2/apache2/php.ini
+
   # - sudo cp /var/www/html/.htaccess oldhtaccess
   # - sudo sh -c "echo 'php_value upload_max_filesize 512MB' >> /var/www/html/.htaccess"
   # - sudo sh -c "echo 'php_value post_max_size 512MB' >> /var/www/html/.htaccess"
