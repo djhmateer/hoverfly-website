@@ -146,17 +146,17 @@ fi
 groupstodel=$(az group list --query "[?contains(name, '${rgprefix}')]".name --output tsv)
 
 # for rgtodel in $groupstodel
-# do
-#     if [ "$rgtodel" = "$rg" ]; then  
-#     echo "not deleting $rgtodel as have just created it"
-#     else
-#     #  Delete the old group(s)
-# 	az group delete \
-#             --name $rgtodel \
-#             --no-wait \
-#             --yes
-#     fi
-# done
+do
+    if [ "$rgtodel" = "$rg" ]; then  
+    echo "not deleting $rgtodel as have just created it"
+    else
+    #  Delete the old group(s)
+	az group delete \
+            --name $rgtodel \
+            --no-wait \
+            --yes
+    fi
+done
 
 # # -o is skip are you sure about ssh keys
 echo -e "\nssh -o StrictHostKeyChecking=no dave@${dnsname}.westeurope.cloudapp.azure.com\n"
