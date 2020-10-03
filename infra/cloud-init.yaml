@@ -61,6 +61,10 @@ runcmd:
   # - mkdir /tmp/wordpress/wp-content/upgrade
   # - sudo cp -a /tmp/wordpress/. /var/www/wordpress
 
+  # this has pre-baked in database settings
+  # also updates to max_filesize for restoring a website
+  - sudo cp /home/dave/source/infra/wp-config.php /var/www/html/
+
   - sudo chown -R www-data:www-data /var/www/html
   - sudo chmod -R 755 /var/www/html
 
