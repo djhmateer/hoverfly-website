@@ -64,8 +64,8 @@ runcmd:
   - sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
 
   # I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
-  - cd /home/dave
-  - sudo -u www-data wpcoreinstall.sh
+  - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
+  - ./wpcoreinstall.sh
   # - sudo -u www-data wp core install --url='http://example.com' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 
   #**TODO plugins
