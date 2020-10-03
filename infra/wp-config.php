@@ -37,6 +37,15 @@ define( 'DB_CHARSET', 'utf8' );
 /** The Database Collate type. Don't change this if in doubt. */
 define( 'DB_COLLATE', '' );
 
+// doesn't work so setting in php.ini
+
+// @ini_set( 'upload_max_filesize' , '128M' );
+// @ini_set( 'post_max_size', '128M');
+// @ini_set( 'memory_limit', '256M' );
+// @ini_set( 'max_execution_time', '300' );
+// @ini_set( 'max_input_time', '300' );
+
+
 /**#@+
  * Authentication Unique Keys and Salts.
  *
@@ -85,12 +94,6 @@ define( 'WP_DEBUG', false );
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', __DIR__ . '/' );
 }
-
-@ini_set( 'upload_max_filesize' , '128M' );
-@ini_set( 'post_max_size', '128M');
-@ini_set( 'memory_limit', '256M' );
-@ini_set( 'max_execution_time', '300' );
-@ini_set( 'max_input_time', '300' );
 
 /** Sets up WordPress vars and included files. */
 require_once ABSPATH . 'wp-settings.php';
