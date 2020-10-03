@@ -71,6 +71,7 @@ runcmd:
   # - sudo nano /var/www/wordpress/wp-config.php
 
   # settings needed for wp all in one website import
+  - sudo cp /var/www/html/.htaccess oldhtaccess
   - sudo sh -c "echo 'php_value upload_max_filesize 512MB' >> /var/www/html/.htaccess"
   - sudo sh -c "echo 'php_value post_max_size 512MB' >> /var/www/html/.htaccess"
   - sudo sh -c "echo 'php_value memory_limit 256MB' >> /var/www/html/.htaccess"
