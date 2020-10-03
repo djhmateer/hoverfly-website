@@ -68,7 +68,9 @@ runcmd:
   - sudo -u www-data /home/dave/source/infra/wpcoreinstall.sh
   # - sudo -u www-data wp core install --url='http://example.com' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 
-  #**TODO plugins
+
+  # plugins
+  - sudo -u www-data wp plugin install all-in-one-wp-migration –-activate 
 
   # wordpress
   # - cd /tmp 
