@@ -57,18 +57,14 @@ runcmd:
   - sudo chmod +x wp-cli.phar
   - sudo mv wp-cli.phar /usr/local/bin/wp
 
-   - cd /var/www/
-   - sudo chown -R www-data:www-data html
-   - cd html
-   - sudo -u www-data wp core download
-   - sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
-   - sudo -u www-data wp core install --url='http://example.com' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
+  - cd /var/www/
+  - sudo chown -R www-data:www-data html
+  - cd html
+  - sudo -u www-data wp core download
+  - sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
+  - sudo -u www-data wp core install --url='http://example.com' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 
   #**TODO plugins
-
-
-
-
 
   # wordpress
   # - cd /tmp 
