@@ -77,18 +77,24 @@ runcmd:
   # - sudo nano /var/www/wordpress/wp-config.php
 
   # settings needed for wp all in one website import
+  # https://help.servmask.com/2018/10/27/how-to-increase-maximum-upload-file-size-in-wordpress/
+  # .htaccess works, but not auto generated until after wordpress starts
+  # wp-config.php putting in settings didn't work for me
+  # so php.ini works
+  # **WILL NEED TO PATCH IN NEW VERSION WHEN NEW VERSION OF PHP**
   - cd /etc/php/7.2/apache2
   - sudo cp php.ini phpoldini.txt
   - sudo cp /home/dave/source/infra/php.ini /etc/php/7.2/apache2/php.ini
 
-  # - sudo cp /var/www/html/.htaccess oldhtaccess
-  # - sudo sh -c "echo 'php_value upload_max_filesize 512MB' >> /var/www/html/.htaccess"
-  # - sudo sh -c "echo 'php_value post_max_size 512MB' >> /var/www/html/.htaccess"
-  # - sudo sh -c "echo 'php_value memory_limit 256MB' >> /var/www/html/.htaccess"
-  # - sudo sh -c "echo 'php_value max_execution_time 300' >> /var/www/html/.htaccess"
-  # - sudo sh -c "echo 'php_value max_input_time 300' >> /var/www/html/.htaccess"
-
   - sudo systemctl restart apache2
+
+  # Wordpress CLI
+  - cd ~ 
+  - sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+  - sudo chmod +x wp-cli.phar
+  - sudo mv wp-cli.phar /usr/local/bin/wp
+
+
   #
   # Bashtop
   #
