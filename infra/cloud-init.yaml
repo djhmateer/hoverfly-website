@@ -19,12 +19,12 @@ runcmd:
   - cd /home/dave
   - sudo git clone https://github.com/djhmateer/hoverfly-website.git source
 
-  # AllowOverride in web root
+  # AllowOverride in web root for url rewriting
   - sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
 
   - sudo a2enmod rewrite
 
-  # mysql
+  # Mysql
   - sudo apt install mysql-server -y
 
   # should i do this?
@@ -35,20 +35,25 @@ runcmd:
   - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost' IDENTIFIED BY 'password';"
   - sudo mysql -e "FLUSH PRIVILEGES;"
 
-  # php
+  # PHP
   - sudo apt install php libapache2-mod-php php-mysql -y
   - sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
 
-  # create info.php and delete the apache default index.html
-  - sudo cp /home/dave/source/infra/info.php /var/www/html
-  - sudo rm /var/www/html/index.html
+  # settings needed for wp all in one website import
+  # https://help.servmask.com/2018/10/27/how-to-increase-maximum-upload-file-size-in-wordpress/
+  # .htaccess works, but not auto generated until after wordpress starts
+  # wp-config.php putting in settings didn't work for me
+  # **WILL NEED TO PATCH IN NEW VERSION WHEN NEW VERSION OF PHP**
+  - cd /etc/php/7.2/apache2
+  - sudo cp php.ini phpoldini.txt
+  - sudo cp /home/dave/source/infra/php.ini /etc/php/7.2/apache2/php.ini
 
-  - sudo systemctl restart apache2
-  
+  # delete the apache default index.html
+  # - sudo rm /var/www/html/index.html
+
   # checks for syntax errors in apache conf
   - sudo apache2ctl configtest
   - sudo systemctl restart apache2
-
 
   # Wordpress CLI
   # https://www.linode.com/docs/websites/cms/wordpress/install-wordpress-using-wp-cli-on-ubuntu-18-04/
@@ -71,35 +76,7 @@ runcmd:
   # plugins
   - sudo -u www-data wp plugin install all-in-one-wp-migration --activate  
 
-  # wordpress
-  # - cd /tmp 
-  # - curl -O https://wordpress.org/latest.tar.gz
-  # - tar -xvf latest.tar.gz
-  # - sudo cp -a /tmp/wordpress/. /var/www/html
-
-  # # this has pre-baked in database settings
-  # # also updates to max_filesize for restoring a website
-  # - sudo cp /home/dave/source/infra/wp-config.php /var/www/html/
-
-  # - sudo chown -R www-data:www-data /var/www/html
-  # - sudo chmod -R 755 /var/www/html
-
-  # - sudo mkdir /var/www/html/wp-content/uploads
-  # - sudo chown -R www-data:www-data /var/www/html/wp-content/uploads/
-
-  # - curl -s https://api.wordpress.org/secret-key/1.1/salt/
-  # - sudo nano /var/www/wordpress/wp-config.php
-
-  # settings needed for wp all in one website import
-  # https://help.servmask.com/2018/10/27/how-to-increase-maximum-upload-file-size-in-wordpress/
-  # .htaccess works, but not auto generated until after wordpress starts
-  # wp-config.php putting in settings didn't work for me
-  # so php.ini works
-  # **WILL NEED TO PATCH IN NEW VERSION WHEN NEW VERSION OF PHP**
-  - cd /etc/php/7.2/apache2
-  - sudo cp php.ini phpoldini.txt
-  - sudo cp /home/dave/source/infra/php.ini /etc/php/7.2/apache2/php.ini
-
+  # maybe don't need to restart?
   - sudo systemctl restart apache2
 
 final_message: "The system is finally up, after $UPTIME seconds"
