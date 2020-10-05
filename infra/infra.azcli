@@ -37,7 +37,8 @@ nicName=nic${int}
 image=UbuntuLTS
 
 # wp core so know the domain name to feed it
-echo -e "wp core install --url='https://${dnsname}.westeurope.cloudapp.azure.com' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'" > wpcoreinstall.sh
+# echo -e "wp core install --url='https://${dnsname}.westeurope.cloudapp.azure.com' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'" > wpcoreinstall.sh
+echo -e "wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'" > wpcoreinstall.sh
 
 git add .
 git commit -m "auto"
