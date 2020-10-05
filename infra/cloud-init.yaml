@@ -20,7 +20,7 @@ runcmd:
   - sudo git clone https://github.com/djhmateer/hoverfly-website.git source
 
   # AllowOverride in web root for url rewriting
-  #- sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
+  - sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
   - sudo cp /home/dave/source/infra/default-ssl.conf /etc/apache2/sites-available
 
   - sudo a2enmod rewrite
@@ -71,6 +71,8 @@ runcmd:
   - cd html
   - sudo -u www-data wp core download
   - sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
+
+  - sudo chmod -R 755 /var/www/html/wp-content
 
   # I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
   - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
