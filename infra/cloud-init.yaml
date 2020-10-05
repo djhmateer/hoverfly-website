@@ -54,6 +54,7 @@ runcmd:
 
   # delete the apache default index.html
   - sudo rm /var/www/html/index.html
+  - sudo cp /home/dave/source/infra/info.php /var/www/html/
 
   # checks for syntax errors in apache conf
   - sudo apache2ctl configtest
@@ -81,6 +82,12 @@ runcmd:
 
   # plugins
   - sudo -u www-data wp plugin install all-in-one-wp-migration --activate  
+
+  # all in one
+  - cd ~
+  - sudo curl -O https://import.wp-migration.com/all-in-one-wp-migration-file-extension.zip
+  - sudo -u www-data mv all-in-one-wp-migration-file-extension.zip /var/www/html
+  - sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip
 
   # maybe don't need to restart?
   - sudo systemctl restart apache2
