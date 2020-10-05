@@ -20,9 +20,13 @@ runcmd:
   - sudo git clone https://github.com/djhmateer/hoverfly-website.git source
 
   # AllowOverride in web root for url rewriting
-  - sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
+  #- sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
+  - sudo cp /home/dave/source/infra/default-ssl.conf /etc/apache2/sites-available
 
   - sudo a2enmod rewrite
+  - sudo a2enmod ssl
+  - sudo a2ensite default-ssl.conf
+  - sudo service apache2 restart
 
   # Mysql
   - sudo apt install mysql-server -y
@@ -49,7 +53,7 @@ runcmd:
   - sudo cp /home/dave/source/infra/php.ini /etc/php/7.2/apache2/php.ini
 
   # delete the apache default index.html
-  # - sudo rm /var/www/html/index.html
+  - sudo rm /var/www/html/index.html
 
   # checks for syntax errors in apache conf
   - sudo apache2ctl configtest
