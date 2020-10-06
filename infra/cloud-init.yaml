@@ -62,7 +62,7 @@ runcmd:
   # - cd /etc/php/7.2/apache2
   - cd /etc/php/7.4/apache2
   - sudo cp php.ini phpoldini.txt
-  - sudo cp /home/dave/source/infra/php.ini /etc/php/7.4/apache2/php.ini
+  - sudo cp /home/dave/source/infra/php74.ini /etc/php/7.4/apache2/php.ini
 
   # delete the apache default index.html
   - sudo rm /var/www/html/index.html
