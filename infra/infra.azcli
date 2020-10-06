@@ -123,15 +123,12 @@ az vm create \
     --image ${image} \
     --ssh-key-values ../secrets/sshkey-homelenovo.pub ../secrets/sshkey-work.pub ../secrets/sshkey-homedesktop.pub \
     --custom-data cloud-init.yaml \
-    --size Standard_B1ms # £11.26
+     --size Standard_B1s # £5.65
 
-    # --size Standard_B1s # £5.65
-    #--size Standard_B2s # £22.63
-
-    #--size Standard_B1s # £5.65
     # --size Standard_B1LS  # £2.82
-    # --size Standard_B1s # £5.65
-    # --size Standard_B2s # £22.63
+    #--size Standard_B1s # £5.65
+    #--size Standard_B1ms # £11.26
+    #--size Standard_B2s # £22.63
     # --size Standard_B2ms # £45
 else
 # no ssh keys found so could use username and password or ssh-keys
