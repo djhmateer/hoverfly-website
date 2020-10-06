@@ -5,6 +5,7 @@
 # /var/www/html
 # sudo systemctl restart apache
 
+# how to copy files off server
 # scp dave@hoverflytest39.westeurope.cloudapp.azure.com:/home/dave/php.ini .
 
 # https://www.journaldev.com/24954/install-wordpress-on-ubuntu  (suggests Maria)
@@ -101,8 +102,8 @@ runcmd:
   - sudo -u www-data mv all-in-one-wp-migration-file-extension.zip /var/www/html
   - sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip --activate
 
-  # take off unused plugins
-
+  # wp mail smtp (I'll bring this in through the restore so don't need to do here)
+  #- sudo -u www-data wp plugin install wp-mail-smtp --activate
 
   # maybe don't need to restart?
   - sudo systemctl restart apache2
