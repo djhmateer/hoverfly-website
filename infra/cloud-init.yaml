@@ -21,6 +21,7 @@ runcmd:
 
   # AllowOverride in web root for url rewriting
   - sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
+  # cloudflare connects on SSL (even though we're using the default self signed ssl)
   - sudo cp /home/dave/source/infra/default-ssl.conf /etc/apache2/sites-available
 
   - sudo a2enmod rewrite
@@ -76,18 +77,18 @@ runcmd:
   - sudo chmod -R 755 /var/www/html/wp-content
 
   # I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
-  - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
-  - sudo -u www-data /home/dave/source/infra/wpcoreinstall.sh
-  # - sudo -u www-data wp core install --url='http://example.com' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
+  # - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
+  # - sudo -u www-data /home/dave/source/infra/wpcoreinstall.sh
+  - sudo -u www-data wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 
   # plugins
   - sudo -u www-data wp plugin install all-in-one-wp-migration --activate  
 
-  # all in one
+  # all in one file extension
   - cd ~
   - sudo curl -O https://import.wp-migration.com/all-in-one-wp-migration-file-extension.zip
   - sudo -u www-data mv all-in-one-wp-migration-file-extension.zip /var/www/html
-  - sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip
+  - sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip --activate
 
   # maybe don't need to restart?
   - sudo systemctl restart apache2
