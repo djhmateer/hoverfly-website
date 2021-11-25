@@ -128,8 +128,8 @@ az vm create \
     --nics ${nicName} \
     --image ${image} \
     --ssh-key-values ../secrets/sshkey-homelenovo.pub ../secrets/sshkey-4790-1804.pub \
-    --size Standard_B2s 
-    # --size Standard_B1s # £5.65
+    --size Standard_B1s # £5.65
+    # --size Standard_B2s 
 
     # --custom-data cloud-init.yaml \
 # TODO
