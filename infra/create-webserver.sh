@@ -7,36 +7,34 @@
 # how to copy files off server
 # scp dave@hoverflytest39.westeurope.cloudapp.azure.com:/home/dave/php.ini .
 
-# https://www.journaldev.com/24954/install-wordpress-on-ubuntu  (suggests Maria)
-# https://www.digitalocean.com/community/tutorials/how-to-install-linux-apache-mysql-php-lamp-stack-ubuntu-18-04
+#
+# Disable auto upgrades
+# Keep in now (was a potential problem for another application)
+#
+# cd /home/dave
 
+# cat <<EOT >> 20auto-upgrades
+# APT::Periodic::Update-Package-Lists "0";
+# APT::Periodic::Download-Upgradeable-Packages "0";
+# APT::Periodic::AutocleanInterval "0";
+# APT::Periodic::Unattended-Upgrade "1";
+# EOT
 
-# disable auto upgrades by apt - in dev mode only
-cd /home/dave
+# sudo mv /home/dave/20auto-upgrades /etc/apt/apt.conf.d/20auto-upgrades
 
-cat <<EOT >> 20auto-upgrades
-APT::Periodic::Update-Package-Lists "0";
-APT::Periodic::Download-Upgradeable-Packages "0";
-APT::Periodic::AutocleanInterval "0";
-APT::Periodic::Unattended-Upgrade "1";
-EOT
-
-sudo mv /home/dave/20auto-upgrades /etc/apt/apt.conf.d/20auto-upgrades
-
-# go with newer apt which gets dependency updates too (like linux-azure)
 sudo apt update -y
 sudo apt upgrade -y
 
 sudo apt install apache2 -y
 
-# get helper files from repo
+# Get helper files from repo
 # dave directory created from ssh key passed in?
 cd /home/dave
 sudo git clone https://github.com/djhmateer/hoverfly-website.git source
 
 # AllowOverride in web root for url rewriting
 sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
-# cloudflare connects on SSL (even though we're using the default self signed ssl)
+# Cloudflare connects on SSL (even though we're using the default self signed ssl)
 sudo cp /home/dave/source/infra/default-ssl.conf /etc/apache2/sites-available
 
 sudo a2enmod rewrite
@@ -56,33 +54,26 @@ sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
 # PHP7.4 is included in 21.04 so no need to point to this new repo unless want PHP8
-sudo apt update -y
+# Easier to leave with default version as extensions below get harder when specifying versions
+
 # sudo apt install software-properties-common -y
 # sudo add-apt-repository ppa:ondrej/php -y
 # sudo apt update -y
 # sudo apt upgrade -y
 
-# DM
+# PHP default version install
 sudo apt install php -y
 sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
 sudo apt install libapache2-mod-php -y
 sudo apt install php-mysql -y
+sudo apt install php-imagick -y
 
-##END
-
-# PHP - this installs 7.2.24
-#- sudo apt install php libapache2-mod-php php-mysql -y
-
+# To install specific version of PHP
 # sudo apt install php7.4 libapache2-mod-php php-mysql -y
 
-# change with a new version of PHP
+# Then need specific versions of extensions eg
 # sudo apt install php7.4-mysql -y
-
 # sudo apt install php7.4-curl
-
-# sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
-# sudo apt install imagemagick -y
-# sudo apt install php-imagick -y
 
 #  # settings needed for wp all in one website import
 #  # https://help.servmask.com/2018/10/27/how-to-increase-maximum-upload-file-size-in-wordpress/
@@ -94,12 +85,13 @@ cd /etc/php/7.4/apache2
 sudo cp php.ini phpoldini.txt
 sudo cp /home/dave/source/infra/php74.ini /etc/php/7.4/apache2/php.ini
 
- # delete the apache default index.html
+# delete the apache default index.html
 sudo rm /var/www/html/index.html
 
-sudo cp /home/dave/source/infra/info.php /var/www/html/
+# info.php
+# sudo cp /home/dave/source/infra/info.php /var/www/html/
 
-  # checks for syntax errors in apache conf
+# checks for syntax errors in apache conf
 sudo apache2ctl configtest
 sudo systemctl restart apache2
 
@@ -118,13 +110,8 @@ sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass
 
 sudo chmod -R 755 /var/www/html/wp-content
 
-# Your PHP installation appears to be missing the MySQL extension which is required by WordPress.
-
-
 # I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
-# - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
-# - sudo -u www-data /home/dave/source/infra/wpcoreinstall.sh
-
+# Or use Cloudflare DNS to switch
 sudo -u www-data wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 # sudo -u www-data wp core install --url='http://hoverflylagoons821.westeurope.cloudapp.azure.com/' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 
@@ -139,6 +126,5 @@ cd /var/www/html
 sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip --activate
 
 # wp mail smtp (I'll bring this in through the restore so don't need to do here)
-#- sudo -u www-data wp plugin install wp-mail-smtp --activate
 
 sudo systemctl restart apache2
