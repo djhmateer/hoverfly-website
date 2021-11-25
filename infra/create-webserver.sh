@@ -52,9 +52,6 @@ sudo apt install mysql-server -y
 
 sudo mysql -e "CREATE DATABASE wordpress;"
 sudo mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY 'password';"
-
-# MySQL 8 dropped this shorthand
-# - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost' IDENTIFIED BY 'password';"
 sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
@@ -63,7 +60,6 @@ sudo mysql -e "FLUSH PRIVILEGES;"
 sudo apt update -y
 sudo apt install software-properties-common -y
 sudo add-apt-repository ppa:ondrej/php -y
-# sudo apt-get update
 sudo apt update -y
 sudo apt upgrade -y
 
@@ -71,6 +67,9 @@ sudo apt upgrade -y
 # PHP - this installs 7.2.24
 #- sudo apt install php libapache2-mod-php php-mysql -y
 sudo apt install php7.4 libapache2-mod-php php-mysql -y
+# change with a new version of PHP
+sudo apt install php7.4-mysql -y
+
 sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
 sudo apt install imagemagick -y
 sudo apt install php-imagick -y
@@ -94,42 +93,47 @@ sudo cp /home/dave/source/infra/info.php /var/www/html/
 sudo apache2ctl configtest
 sudo systemctl restart apache2
 
-  # Wordpress CLI
-  # https://www.linode.com/docs/websites/cms/wordpress/install-wordpress-using-wp-cli-on-ubuntu-18-04/
-  cd ~ 
-  sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-  sudo chmod +x wp-cli.phar
-  sudo mv wp-cli.phar /usr/local/bin/wp
+# Wordpress CLI
+# https://www.linode.com/docs/websites/cms/wordpress/install-wordpress-using-wp-cli-on-ubuntu-18-04/
+cd ~ 
+sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+sudo chmod +x wp-cli.phar
+sudo mv wp-cli.phar /usr/local/bin/wp
 
- cd /var/www/
- sudo chown -R www-data:www-data html
- cd html
- sudo -u www-data wp core download
- sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
+cd /var/www/
+#  sudo chown -R www-data:www-data html
+sudo chown -R www-data:www-data /var/www
+cd html
+sudo -u www-data wp core download
+sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
 
-  sudo chmod -R 755 /var/www/html/wp-content
+sudo chmod -R 755 /var/www/html/wp-content
 
-  # I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
-  # - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
-  # - sudo -u www-data /home/dave/source/infra/wpcoreinstall.sh
-  sudo -u www-data wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
+# Your PHP installation appears to be missing the MySQL extension which is required by WordPress.
 
-  # plugins
-  sudo -u www-data wp plugin install all-in-one-wp-migration --activate  
 
-  # all in one file extension
-  cd ~
-  sudo curl -O https://import.wp-migration.com/all-in-one-wp-migration-file-extension.zip
-  sudo -u www-data mv all-in-one-wp-migration-file-extension.zip /var/www/html
-  sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip --activate
+# I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
+# - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
+# - sudo -u www-data /home/dave/source/infra/wpcoreinstall.sh
+sudo -u www-data wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 
-  # wp mail smtp (I'll bring this in through the restore so don't need to do here)
-  #- sudo -u www-data wp plugin install wp-mail-smtp --activate
+# plugins
+sudo -u www-data wp plugin install all-in-one-wp-migration --activate  
+
+# all in one file extension
+cd ~
+sudo curl -O https://import.wp-migration.com/all-in-one-wp-migration-file-extension.zip
+sudo -u www-data cp all-in-one-wp-migration-file-extension.zip /var/www/html
+cd /var/www/html
+sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip --activate
+
+# wp mail smtp (I'll bring this in through the restore so don't need to do here)
+#- sudo -u www-data wp plugin install wp-mail-smtp --activate
 
   # maybe don't need to restart?
-  - sudo systemctl restart apache2
+sudo systemctl restart apache2
 
-final_message: "The system is finally up, after $UPTIME seconds"
+# final_message: "The system is finally up, after $UPTIME seconds"
 
   #
   # Bashtop

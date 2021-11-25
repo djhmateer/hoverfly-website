@@ -45,7 +45,11 @@ image=Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:latest
 # echo -e "wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'" > wpcoreinstall.sh
 
 # useful in development to always commit changes
-git add . && git commit -m "auto" && git push
+cd ..
+git add .
+git commit -m "auto"
+git push
+cd infra
 
 # Create a resource group
 az group create \
