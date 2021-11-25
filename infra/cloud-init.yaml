@@ -44,7 +44,6 @@ runcmd:
   # MySQL 8 dropped this shorthand
   # - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost' IDENTIFIED BY 'password';"
   - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
-
   - sudo mysql -e "FLUSH PRIVILEGES;"
 
   # PHP7.4
