@@ -14,6 +14,8 @@ package_upgrade: true
 runcmd:
   # Apache
   - sudo apt update -y
+  - sudo apt upgrade -y
+
   - sudo apt install apache2 -y
 
   # get helper files from repo
@@ -38,7 +40,11 @@ runcmd:
 
   - sudo mysql -e "CREATE DATABASE wordpress;"
   - sudo mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY 'password';"
-  - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost' IDENTIFIED BY 'password';"
+
+  # MySQL 8 dropped this shorthand
+  # - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost' IDENTIFIED BY 'password';"
+  - sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
+
   - sudo mysql -e "FLUSH PRIVILEGES;"
 
   # PHP7.4
