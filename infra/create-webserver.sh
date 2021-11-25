@@ -95,12 +95,12 @@ sudo systemctl restart apache2
 
 # Wordpress CLI
 # https://www.linode.com/docs/websites/cms/wordpress/install-wordpress-using-wp-cli-on-ubuntu-18-04/
-cd ~ 
+cd /home/dave
 sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 sudo chmod +x wp-cli.phar
 sudo mv wp-cli.phar /usr/local/bin/wp
 
-cd /var/www/
+cd /var/www/html
 #  sudo chown -R www-data:www-data html
 sudo chown -R www-data:www-data /var/www
 sudo -u www-data wp core download
