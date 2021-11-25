@@ -41,9 +41,7 @@ image=UbuntuLTS
 # echo -e "wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'" > wpcoreinstall.sh
 
 # useful in development to always commit changes
-git add .
-git commit -m "auto"
-git push
+git add . && git commit -m "auto" && git push
 
 # Create a resource group
 az group create \
