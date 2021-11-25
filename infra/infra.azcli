@@ -37,7 +37,7 @@ nicName=nic${int}
 # use current LTS Version of Ubuntu - 18.04.3 as of 8th Nov 2019
 # image=UbuntuLTS
 
-# 25th Nov 2021
+# 25th Nov 2021 - this is the latest LTS so using this to be explicit
 image=Canonical:0001-com-ubuntu-server-focal:20_04-lts-gen2:latest
 
 # wp core so know the domain name to feed it (don't need this now as going straight to hoverflylagoons.co.uk)
@@ -142,6 +142,7 @@ az vm create \
     --image ${image} \
     --custom-data cloud-init.yaml \
     --size Standard_B1s
+    
     #--generate-ssh-keys \
     # above means we will use a generated ssh key from this machine
     # --admin-username ${adminusername} \
