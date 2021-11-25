@@ -103,7 +103,6 @@ sudo mv wp-cli.phar /usr/local/bin/wp
 cd /var/www/
 #  sudo chown -R www-data:www-data html
 sudo chown -R www-data:www-data /var/www
-cd html
 sudo -u www-data wp core download
 sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
 
@@ -115,7 +114,9 @@ sudo chmod -R 755 /var/www/html/wp-content
 # I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
 # - sudo chmod 777 /home/dave/source/infra/wpcoreinstall.sh
 # - sudo -u www-data /home/dave/source/infra/wpcoreinstall.sh
+
 sudo -u www-data wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
+# sudo -u www-data wp core install --url='http://hoverflylagoons821.westeurope.cloudapp.azure.com/' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
 
 # plugins
 sudo -u www-data wp plugin install all-in-one-wp-migration --activate  

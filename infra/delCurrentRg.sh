@@ -1,2 +1,2 @@
-az group delete --name HoverflyLagoons758 --no-wait --yes 
+az group delete --name HoverflyLagoons821 --no-wait --yes 
 
