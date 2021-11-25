@@ -55,21 +55,23 @@ sudo mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY 'password';"
 sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
 sudo mysql -e "FLUSH PRIVILEGES;"
 
-# PHP7.4
-#  sudo apt-get update
+# PHP7.4 is included in 21.04 so no need to point to this new repo unless want PHP8
 sudo apt update -y
-sudo apt install software-properties-common -y
-sudo add-apt-repository ppa:ondrej/php -y
-sudo apt update -y
-sudo apt upgrade -y
+# sudo apt install software-properties-common -y
+# sudo add-apt-repository ppa:ondrej/php -y
+# sudo apt update -y
+# sudo apt upgrade -y
 
 
 # PHP - this installs 7.2.24
 #- sudo apt install php libapache2-mod-php php-mysql -y
-sudo apt install php7.4 libapache2-mod-php php-mysql -y
+
+# sudo apt install php7.4 libapache2-mod-php php-mysql -y
 
 # change with a new version of PHP
 # sudo apt install php7.4-mysql -y
+
+# sudo apt install php7.4-curl
 
 # sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
 # sudo apt install imagemagick -y
