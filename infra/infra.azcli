@@ -141,14 +141,20 @@ az vm create \
     --location ${region} \
     --nics ${nicName} \
     --image ${image} \
-    --custom-data cloud-init.yaml \
     --size Standard_B1s
     
+    # --custom-data cloud-init.yaml \
     #--generate-ssh-keys \
     # above means we will use a generated ssh key from this machine
     # --admin-username ${adminusername} \
     # --admin-password ${adminpassword}
 fi
+
+# az vm run-command invoke \
+#     -g ${rg} \
+#     -n ${vmname} \
+#     --command-id RunShellScript \
+#     --scripts @create-webserver.sh
 
 # delete old resource groups
 # https://techcommunity.microsoft.com/t5/itops-talk-blog/how-to-query-azure-resources-using-the-azure-cli/ba-p/360147
