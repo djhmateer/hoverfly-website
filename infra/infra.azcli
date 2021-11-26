@@ -155,6 +155,7 @@ az vm create \
     # --admin-password ${adminpassword}
 fi
 
+# using bash script rather than cloud-init
 az vm run-command invoke \
     -g ${rg} \
     -n ${vmname} \
@@ -165,7 +166,7 @@ az vm run-command invoke \
 # https://techcommunity.microsoft.com/t5/itops-talk-blog/how-to-query-azure-resources-using-the-azure-cli/ba-p/360147
 
 # TODO
-# getting all groups with the rgprefix eg BLCCTEST
+# getting all groups with the rgprefix 
 # groupstodel=$(az group list --query "[?contains(name, '${rgprefix}')]".name --output tsv)
 
 # for rgtodel in $groupstodel
