@@ -128,3 +128,9 @@ sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip --
 # wp mail smtp (I'll bring this in through the restore so don't need to do here)
 
 sudo systemctl restart apache2
+
+# sudo apt-get install htop
+
+# Have seen high memory usage, and a reboot sorts this
+sudo reboot now
+
