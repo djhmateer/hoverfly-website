@@ -128,8 +128,11 @@ az vm create \
     --nics ${nicName} \
     --image ${image} \
     --ssh-key-values ../secrets/sshkey-homelenovo.pub ../secrets/sshkey-4790-1804.pub \
-    --size Standard_B1s # £5.65
-    # --size Standard_B2s 
+    --size Standard_B1ms # £11.26
+
+    # had instability problems with B1s - every few hours or days it would fail with database connection problems
+    # ie out of memory and paging to disk
+    # --size Standard_B1s # £5.65
 
     # --custom-data cloud-init.yaml \
 # TODO
@@ -146,7 +149,7 @@ az vm create \
     --location ${region} \
     --nics ${nicName} \
     --image ${image} \
-    --size Standard_B1s
+    --size Standard_B1ms
     
     # --custom-data cloud-init.yaml \
     #--generate-ssh-keys \
