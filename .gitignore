@@ -344,3 +344,6 @@ healthchecksdb
 secrets
 # generated helper file for ssh'ing
 a.bat
+
+# All-in-One WP Migration exports (large, contain the database)
+backup/

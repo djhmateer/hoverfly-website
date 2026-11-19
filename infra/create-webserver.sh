@@ -1,136 +1,99 @@
 #!/bin/sh
 
-# /etc/apache2/sites-available
-# /var/www/html
-# sudo systemctl restart apache
+# Builds the hoverflylagoons.co.uk WordPress webserver on Ubuntu 26.04
+# Run by infra.azcli via az vm run-command (runs as root)
+# Expects /home/dave/dnsimpletoken.txt and /home/dave/backup.wpress (scp'd by infra.azcli)
 
-# how to copy files off server
-# scp dave@hoverflytest39.westeurope.cloudapp.azure.com:/home/dave/php.ini .
+set -x
 
-#
-# Disable auto upgrades
-# Keep in now (was a potential problem for another application)
-#
-# cd /home/dave
+# daily unattended security upgrades
+cat <<EOT > /etc/apt/apt.conf.d/20auto-upgrades
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Download-Upgradeable-Packages "1";
+APT::Periodic::AutocleanInterval "7";
+APT::Periodic::Unattended-Upgrade "1";
+EOT
 
-# cat <<EOT >> 20auto-upgrades
-# APT::Periodic::Update-Package-Lists "0";
-# APT::Periodic::Download-Upgradeable-Packages "0";
-# APT::Periodic::AutocleanInterval "0";
-# APT::Periodic::Unattended-Upgrade "1";
-# EOT
+apt-get update -y
+DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 
-# sudo mv /home/dave/20auto-upgrades /etc/apt/apt.conf.d/20auto-upgrades
+# nginx, php-fpm and mysql from the Ubuntu archive
+DEBIAN_FRONTEND=noninteractive apt-get install -y nginx mysql-server ufw \
+  php-fpm php-mysql php-curl php-gd php-mbstring php-xml php-intl php-zip php-imagick
 
-sudo apt update -y
-sudo apt upgrade -y
+# fail if nginx is older than the nginx2root fix (USN-9159-1) for 26.04
+nginx_version=$(dpkg-query -W -f='${Version}' nginx)
+if ! dpkg --compare-versions "$nginx_version" ge 1.28.3-2ubuntu1.13; then
+  echo "nginx $nginx_version is not patched for nginx2root - stopping"
+  exit 1
+fi
 
-sudo apt install apache2 -y
+# SSL cert from Let's Encrypt via DNS-01 challenge on DNSimple
+# works before DNS points here, and the certbot snap's systemd timer auto renews
+snap wait system seed.loaded
+snap install --classic certbot
+snap set certbot trust-plugin-with-root=ok
+snap install certbot-dns-dnsimple
 
-# Get helper files from repo
-# dave directory created from ssh key passed in?
-cd /home/dave
-sudo git clone https://github.com/djhmateer/hoverfly-website.git source
+mkdir -p /etc/letsencrypt
+echo "dns_dnsimple_token = $(head -n 1 /home/dave/dnsimpletoken.txt)" > /etc/letsencrypt/dnsimple.ini
+chmod 600 /etc/letsencrypt/dnsimple.ini
+rm /home/dave/dnsimpletoken.txt
 
-# AllowOverride in web root for url rewriting
-sudo cp /home/dave/source/infra/000-default.conf /etc/apache2/sites-available
-# Cloudflare connects on SSL (even though we're using the default self signed ssl)
-sudo cp /home/dave/source/infra/default-ssl.conf /etc/apache2/sites-available
+certbot certonly --non-interactive --agree-tos --register-unsafely-without-email \
+  --dns-dnsimple --dns-dnsimple-credentials /etc/letsencrypt/dnsimple.ini \
+  -d hoverflylagoons.co.uk -d www.hoverflylagoons.co.uk \
+  --deploy-hook "systemctl reload nginx"
 
-sudo a2enmod rewrite
-sudo a2enmod ssl
-sudo a2ensite default-ssl.conf
-sudo service apache2 restart
+# repo for nginx.conf, php ini and the restore script
+git clone https://github.com/djhmateer/hoverfly-website.git /gitsource
 
-# Mysql
-sudo apt install mysql-server -y
+# php settings (upload size etc) - same values whatever PHP version Ubuntu ships
+phpv=$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')
+cp /gitsource/infra/php-hoverfly.ini /etc/php/${phpv}/fpm/conf.d/99-hoverfly.ini
+systemctl restart php${phpv}-fpm
 
-# https://www.digitalocean.com/community/tutorials/how-to-install-linux-apache-mysql-php-lamp-stack-on-ubuntu-20-04
-#- sudo mysql_secure_installation
+# database with a random password (only wp-config.php needs to know it)
+dbpass=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c34)
+mysql -e "CREATE DATABASE wordpress;"
+mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY '${dbpass}';"
+mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
 
-sudo mysql -e "CREATE DATABASE wordpress;"
-sudo mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY 'password';"
-sudo mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
-sudo mysql -e "FLUSH PRIVILEGES;"
+# WordPress CLI
+curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+chmod +x /usr/local/bin/wp
 
-# PHP7.4 is included in 21.04 so no need to point to this new repo unless want PHP8
-# Easier to leave with default version as extensions below get harder when specifying versions
-
-# sudo apt install software-properties-common -y
-# sudo add-apt-repository ppa:ondrej/php -y
-# sudo apt update -y
-# sudo apt upgrade -y
-
-# PHP default version install
-sudo apt install php -y
-sudo apt install php-curl php-gd php-mbstring php-xml php-xmlrpc php-soap php-intl php-zip -y
-sudo apt install libapache2-mod-php -y
-sudo apt install php-mysql -y
-sudo apt install php-imagick -y
-
-# To install specific version of PHP
-# sudo apt install php7.4 libapache2-mod-php php-mysql -y
-
-# Then need specific versions of extensions eg
-# sudo apt install php7.4-mysql -y
-# sudo apt install php7.4-curl
-
-#  # settings needed for wp all in one website import
-#  # https://help.servmask.com/2018/10/27/how-to-increase-maximum-upload-file-size-in-wordpress/
-#  # .htaccess works, but not auto generated until after wordpress starts
-#  # wp-config.php putting in settings didn't work for me
-#  # **WILL NEED TO PATCH IN NEW VERSION WHEN NEW VERSION OF PHP**
-#  # - cd /etc/php/7.2/apache2
-cd /etc/php/7.4/apache2
-sudo cp php.ini phpoldini.txt
-sudo cp /home/dave/source/infra/php74.ini /etc/php/7.4/apache2/php.ini
-
-# delete the apache default index.html
-sudo rm /var/www/html/index.html
-
-# info.php
-# sudo cp /home/dave/source/infra/info.php /var/www/html/
-
-# checks for syntax errors in apache conf
-sudo apache2ctl configtest
-sudo systemctl restart apache2
-
-# Wordpress CLI
-# https://www.linode.com/docs/websites/cms/wordpress/install-wordpress-using-wp-cli-on-ubuntu-18-04/
-cd /home/dave
-sudo curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-sudo chmod +x wp-cli.phar
-sudo mv wp-cli.phar /usr/local/bin/wp
-
+# same WordPress version as the export so pages render the same
+# update to the latest from wp-admin after switching DNS
+rm -f /var/www/html/index.nginx-debian.html
+chown -R www-data:www-data /var/www/html
 cd /var/www/html
-#  sudo chown -R www-data:www-data html
-sudo chown -R www-data:www-data /var/www
-sudo -u www-data wp core download
-sudo -u www-data wp core config --dbname='wordpress' --dbuser='wp_user' --dbpass='password' --dbhost='localhost' --dbprefix='wp_'
+sudo -u www-data wp core download --version=6.9.12
+sudo -u www-data wp config create --dbname=wordpress --dbuser=wp_user --dbpass="${dbpass}" --dbhost=localhost --dbprefix=wp_
 
-sudo chmod -R 755 /var/www/html/wp-content
+# unpack the export and copy wp-content over the fresh install
+# mu-plugins (an old host's sso.php login plugin) and upgrade are deliberately not copied
+python3 -I /gitsource/infra/restore-wpress.py /home/dave/backup.wpress /home/dave/restore
+for d in plugins themes uploads languages; do
+  cp -a /home/dave/restore/$d /var/www/html/wp-content/
+done
 
-# I need the domain name eg http://hoverflytest427.westeurope.cloudapp.azure.com/
-# Or use Cloudflare DNS to switch
-sudo -u www-data wp core install --url='https://hoverflylagoons.co.uk' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
-# sudo -u www-data wp core install --url='http://hoverflylagoons821.westeurope.cloudapp.azure.com/' --title='Blog Title' --admin_user='dave' --admin_password='letmein' --admin_email='email@domain.com'
+# the export replaces the table prefix with a placeholder
+sed 's/SERVMASK_PREFIX_/wp_/g' /home/dave/restore/database.sql | mysql wordpress
 
-# plugins
-sudo -u www-data wp plugin install all-in-one-wp-migration --activate  
+chown -R www-data:www-data /var/www/html
+find /var/www/html -type d -exec chmod 755 {} \;
+find /var/www/html -type f -exec chmod 644 {} \;
+chmod 640 /var/www/html/wp-config.php
 
-# all in one file extension
-cd ~
-sudo curl -O https://import.wp-migration.com/all-in-one-wp-migration-file-extension.zip
-sudo -u www-data cp all-in-one-wp-migration-file-extension.zip /var/www/html
-cd /var/www/html
-sudo -u www-data wp plugin install all-in-one-wp-migration-file-extension.zip --activate
+rm -rf /home/dave/restore
 
-# wp mail smtp (I'll bring this in through the restore so don't need to do here)
+# nginx config - certs are in /etc/letsencrypt/live/hoverflylagoons.co.uk/
+cp /gitsource/infra/nginx.conf /etc/nginx/sites-available/default
+nginx -t
+systemctl reload nginx
 
-sudo systemctl restart apache2
-
-# sudo apt-get install htop
-
-# Have seen high memory usage, and a reboot sorts this
-sudo reboot now
-
+ufw allow 22/tcp
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw --force enable
