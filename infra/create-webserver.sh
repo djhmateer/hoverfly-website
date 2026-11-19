@@ -35,10 +35,13 @@ snap install --classic certbot
 snap set certbot trust-plugin-with-root=ok
 snap install certbot-dns-dnsimple
 
+# set +x so the token isn't echoed into the run-command output
+set +x
 mkdir -p /etc/letsencrypt
 echo "dns_dnsimple_token = $(head -n 1 /home/dave/dnsimpletoken.txt)" > /etc/letsencrypt/dnsimple.ini
 chmod 600 /etc/letsencrypt/dnsimple.ini
 rm /home/dave/dnsimpletoken.txt
+set -x
 
 certbot certonly --non-interactive --agree-tos --register-unsafely-without-email \
   --dns-dnsimple --dns-dnsimple-credentials /etc/letsencrypt/dnsimple.ini \
@@ -54,6 +57,8 @@ cp /gitsource/infra/php-hoverfly.ini /etc/php/${phpv}/fpm/conf.d/99-hoverfly.ini
 systemctl restart php${phpv}-fpm
 
 # database with a random password (only wp-config.php needs to know it)
+# set +x so the password isn't echoed into the run-command output
+set +x
 dbpass=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c34)
 mysql -e "CREATE DATABASE wordpress;"
 mysql -e "CREATE USER 'wp_user'@'localhost' IDENTIFIED BY '${dbpass}';"
@@ -70,6 +75,7 @@ chown -R www-data:www-data /var/www/html
 cd /var/www/html
 sudo -u www-data wp core download --version=6.9.12
 sudo -u www-data wp config create --dbname=wordpress --dbuser=wp_user --dbpass="${dbpass}" --dbhost=localhost --dbprefix=wp_
+set -x
 
 # unpack the export and copy wp-content over the fresh install
 # mu-plugins (an old host's sso.php login plugin) and upgrade are deliberately not copied
@@ -79,7 +85,9 @@ for d in plugins themes uploads languages; do
 done
 
 # the export replaces the table prefix with a placeholder
-sed 's/SERVMASK_PREFIX_/wp_/g' /home/dave/restore/database.sql | mysql wordpress
+# sql_mode off as MySQL's default strict mode rejects the '0000-00-00' date defaults in the dump
+# (WordPress and the plugin importer turn it off the same way)
+{ echo "SET SESSION sql_mode='';"; sed 's/SERVMASK_PREFIX_/wp_/g' /home/dave/restore/database.sql; } | mysql wordpress
 
 chown -R www-data:www-data /var/www/html
 find /var/www/html -type d -exec chmod 755 {} \;
