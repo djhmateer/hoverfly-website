@@ -94,6 +94,15 @@ find /var/www/html -type d -exec chmod 755 {} \;
 find /var/www/html -type f -exec chmod 644 {} \;
 chmod 640 /var/www/html/wp-config.php
 
+# the export blanks the theme and active plugins in the database and keeps them in package.json
+pkg=/home/dave/restore/package.json
+template=$(python3 -I -c "import json,sys; print(json.load(open(sys.argv[1]))['Template'])" $pkg)
+stylesheet=$(python3 -I -c "import json,sys; print(json.load(open(sys.argv[1]))['Stylesheet'])" $pkg)
+plugins=$(python3 -I -c "import json,sys; print(' '.join(p.split('/')[0] for p in json.load(open(sys.argv[1]))['Plugins']))" $pkg)
+sudo -u www-data wp option update template $template
+sudo -u www-data wp option update stylesheet $stylesheet
+sudo -u www-data wp plugin activate $plugins
+
 rm -rf /home/dave/restore
 
 # nginx config - certs are in /etc/letsencrypt/live/hoverflylagoons.co.uk/

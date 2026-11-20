@@ -155,6 +155,10 @@ az vm run-command invoke \
 
 set +x
 
+# helper to ssh to this VM: ./sshCurrentVM.sh
+echo "ssh -o StrictHostKeyChecking=no ${host}" > sshCurrentVM.sh
+chmod +x sshCurrentVM.sh
+
 echo ""
 echo "Built ${rg}"
 echo "ssh -o StrictHostKeyChecking=no ${host}"
