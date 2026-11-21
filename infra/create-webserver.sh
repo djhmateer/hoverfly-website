@@ -28,6 +28,17 @@ DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 DEBIAN_FRONTEND=noninteractive apt-get install -y nginx mysql-server ufw \
   php-fpm php-mysql php-curl php-gd php-mbstring php-xml php-intl php-zip php-imagick
 
+# sysstat (already on the image): sample every minute instead of every 10 so short memory spikes show,
+# keep 28 days, and -S XALL adds memory/CPU/IO pressure (sar -q MEM). See README daily checks.
+sed -i 's/^ENABLED=.*/ENABLED="true"/' /etc/default/sysstat
+sed -i -E -e 's/^HISTORY=.*/HISTORY=28/' -e 's/^SADC_OPTIONS=.*/SADC_OPTIONS="-S XALL"/' /etc/sysstat/sysstat
+mkdir -p /etc/systemd/system/sysstat-collect.timer.d
+# the empty OnCalendar= clears the package's every-10-minutes one
+printf '%s\n' '[Timer]' 'OnCalendar=' 'OnCalendar=*:*:00' > /etc/systemd/system/sysstat-collect.timer.d/zz-every-minute.conf
+systemctl daemon-reload
+systemctl enable --now sysstat sysstat-collect.timer
+systemctl restart sysstat-collect.timer
+
 # keep MySQL small for 1GB RAM (performance_schema alone uses a few hundred MB)
 cat <<EOT > /etc/mysql/mysql.conf.d/99-hoverfly.cnf
 [mysqld]
