@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Builds a new hoverflylagoons.co.uk WordPress VM on Azure and restores the site
-# from the All-in-One WP Migration export in ../backup/
+# from a fresh copy of the live database and files (saved in ../backup/)
 # Does NOT touch DNS - check with ./compare-pages.sh then run ./switch-dns.sh
 
 # run from WSL in the infra folder: ./infra.azcli
@@ -18,23 +18,40 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
   exit 1
 fi
 
-# exactly one .wpress export in ../backup
-wpress=$(ls ../backup/*.wpress)
-if [ "$(echo "$wpress" | wc -l)" != "1" ]; then
-  echo "Need exactly one .wpress file in ../backup"
-  exit 1
-fi
-
 if [ ! -f ../secrets/dnsimpletoken.txt ]; then
   echo "Need ../secrets/dnsimpletoken.txt for certbot"
   exit 1
 fi
 
+# copy the live database and files (WordPress core + wp-content) down to ../backup
+# before creating anything - also serves as a local backup
+live=dave@hoverflylagoons.co.uk
+# ~/.ssh/config only maps the azure key to *.cloudapp.azure.com, so name it here
+sshopts="-i ${HOME}/.ssh/id_rsa_azure -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+ts=$(date +%Y%m%d-%H%M%S)
+livedb=../backup/live-db-${ts}.sql.gz
+livefiles=../backup/live-files-${ts}.tgz
+mkdir -p ../backup
+
+if ! ssh ${sshopts} ${live} "set -o pipefail; sudo mysqldump --single-transaction wordpress | gzip" > ${livedb} \
+   || ! gzip -t ${livedb}; then
+  echo "Could not copy the live database - stopping"
+  exit 1
+fi
+
+if ! ssh ${sshopts} ${live} "sudo tar czf - -C /var/www html" > ${livefiles} \
+   || ! gzip -t ${livefiles}; then
+  echo "Could not copy the live files - stopping"
+  exit 1
+fi
+
+ls -lh ${livedb} ${livefiles}
+
 set -x
 
-# Ubuntu 26.04 LTS - check with:
-# az vm image list --publisher Canonical --offer ubuntu-26_04-lts --all -o table
-image=Canonical:ubuntu-26_04-lts:server:latest
+# Ubuntu 26.04 LTS on Arm64 (the VM size below is Arm) - check with:
+# az vm image list --publisher Canonical --offer ubuntu-26_04-lts --all --architecture Arm64 -o table
+image=Canonical:ubuntu-26_04-lts:server-arm64:latest
 
 # Generate a random suffix between 1 and 1000
 int=$(shuf -i 1-1000 -n 1)
@@ -121,12 +138,16 @@ az vm create \
     --nics ${nicName} \
     --image ${image} \
     --ssh-key-values @~/.ssh/id_rsa_azure.pub \
-    --size Standard_B1ms
-    # --size Standard_B1s # £6.5pm (1GB and 1CPU) - too small for MySQL + PHP
-    # --size Standard_B1ms # £13 (2GB and 1CPU)
-    # --size Standard_B2s # £26.63 (4GB)
+    --storage-sku StandardSSD_LRS \
+    --security-type Standard \
+    --size Standard_B2pts_v2
+    # B2pts_v2 doesn't support Trusted Launch, so the security type has to be Standard
+    # West Europe pay-as-you-go prices Nov 2026. OS disk: Standard SSD E4 £1.80pm (Premium P4 was £4.37)
+    # --size Standard_B2pts_v2 # £5.27pm (2 vCPU Arm, 1GB) - needs the swap and mysql tuning in create-webserver.sh
+    # --size Standard_B2pls_v2 # £21.08pm (2 vCPU Arm, 4GB) - next step up if 1GB struggles
+    # --size Standard_B1ms # £13.17pm (1 vCPU Intel, 2GB) - B-series v1, retires 15/11/2028, needs the x64 image
 
-# copy the dnsimple token (for certbot DNS-01) and the site export to the VM
+# copy the dnsimple token (for certbot DNS-01) and the live database and files to the VM
 # create-webserver.sh moves the token into /etc/letsencrypt and deletes this copy
 # I have seen scp timeout so retry until it works
 host=dave@${dnsname}.westeurope.cloudapp.azure.com
@@ -141,12 +162,13 @@ done
 n=0
 until [ "$n" -ge 5 ]
 do
-   scp -o StrictHostKeyChecking=no "${wpress}" ${host}:/home/dave/backup.wpress && break
+   scp -o StrictHostKeyChecking=no ${livedb} ${host}:/home/dave/live-db.sql.gz \
+     && scp -o StrictHostKeyChecking=no ${livefiles} ${host}:/home/dave/live-files.tgz && break
    n=$((n+1))
    sleep 15
 done
 
-# installs nginx, php, mysql, certbot cert, wordpress and restores the export
+# installs nginx, php, mysql, certbot cert and restores the live database and files
 az vm run-command invoke \
     -g ${rg} \
     -n ${vmname} \

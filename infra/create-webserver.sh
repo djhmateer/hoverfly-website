@@ -2,7 +2,7 @@
 
 # Builds the hoverflylagoons.co.uk WordPress webserver on Ubuntu 26.04
 # Run by infra.azcli via az vm run-command (runs as root)
-# Expects /home/dave/dnsimpletoken.txt and /home/dave/backup.wpress (scp'd by infra.azcli)
+# Expects /home/dave/dnsimpletoken.txt, live-db.sql.gz and live-files.tgz in /home/dave (scp'd by infra.azcli)
 
 set -x
 
@@ -14,12 +14,28 @@ APT::Periodic::AutocleanInterval "7";
 APT::Periodic::Unattended-Upgrade "1";
 EOT
 
+# 2GB swap file - the VM only has 1GB RAM and no temp disk
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
 apt-get update -y
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 
 # nginx, php-fpm and mysql from the Ubuntu archive
 DEBIAN_FRONTEND=noninteractive apt-get install -y nginx mysql-server ufw \
   php-fpm php-mysql php-curl php-gd php-mbstring php-xml php-intl php-zip php-imagick
+
+# keep MySQL small for 1GB RAM (performance_schema alone uses a few hundred MB)
+cat <<EOT > /etc/mysql/mysql.conf.d/99-hoverfly.cnf
+[mysqld]
+performance_schema = OFF
+innodb_buffer_pool_size = 128M
+max_connections = 30
+EOT
+systemctl restart mysql
 
 # fail if nginx is older than the nginx2root fix (USN-9159-1) for 26.04
 nginx_version=$(dpkg-query -W -f='${Version}' nginx)
@@ -68,42 +84,23 @@ mysql -e "GRANT ALL ON wordpress.* TO 'wp_user'@'localhost';"
 curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 chmod +x /usr/local/bin/wp
 
-# same WordPress version as the export so pages render the same
-# update to the latest from wp-admin after switching DNS
-rm -f /var/www/html/index.nginx-debian.html
+# live site files (WordPress core, wp-content and wp-config.php) - same WordPress version as live
+rm -rf /var/www/html
+tar xzf /home/dave/live-files.tgz -C /var/www
 chown -R www-data:www-data /var/www/html
+
+# keep the live wp-config.php (salts, settings) but point it at the new database password
 cd /var/www/html
-sudo -u www-data wp core download --version=6.9.12
-sudo -u www-data wp config create --dbname=wordpress --dbuser=wp_user --dbpass="${dbpass}" --dbhost=localhost --dbprefix=wp_
+sudo -u www-data wp config set DB_PASSWORD "${dbpass}" --quiet
 set -x
 
-# unpack the export and copy wp-content over the fresh install
-# mu-plugins (an old host's sso.php login plugin) and upgrade are deliberately not copied
-python3 -I /gitsource/infra/restore-wpress.py /home/dave/backup.wpress /home/dave/restore
-for d in plugins themes uploads languages; do
-  cp -a /home/dave/restore/$d /var/www/html/wp-content/
-done
-
-# the export replaces the table prefix with a placeholder
-# sql_mode off as MySQL's default strict mode rejects the '0000-00-00' date defaults in the dump
-# (WordPress and the plugin importer turn it off the same way)
-{ echo "SET SESSION sql_mode='';"; sed 's/SERVMASK_PREFIX_/wp_/g' /home/dave/restore/database.sql; } | mysql wordpress
+gunzip -c /home/dave/live-db.sql.gz | mysql wordpress
+rm /home/dave/live-db.sql.gz /home/dave/live-files.tgz
 
 chown -R www-data:www-data /var/www/html
 find /var/www/html -type d -exec chmod 755 {} \;
 find /var/www/html -type f -exec chmod 644 {} \;
 chmod 640 /var/www/html/wp-config.php
-
-# the export blanks the theme and active plugins in the database and keeps them in package.json
-pkg=/home/dave/restore/package.json
-template=$(python3 -I -c "import json,sys; print(json.load(open(sys.argv[1]))['Template'])" $pkg)
-stylesheet=$(python3 -I -c "import json,sys; print(json.load(open(sys.argv[1]))['Stylesheet'])" $pkg)
-plugins=$(python3 -I -c "import json,sys; print(' '.join(p.split('/')[0] for p in json.load(open(sys.argv[1]))['Plugins']))" $pkg)
-sudo -u www-data wp option update template $template
-sudo -u www-data wp option update stylesheet $stylesheet
-sudo -u www-data wp plugin activate $plugins
-
-rm -rf /home/dave/restore
 
 # nginx config - certs are in /etc/letsencrypt/live/hoverflylagoons.co.uk/
 cp /gitsource/infra/nginx.conf /etc/nginx/sites-available/default

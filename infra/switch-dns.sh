@@ -27,17 +27,24 @@ for record in 90242861 90242877; do
   type=$(curl -s $url -H "Authorization: Bearer ${token}" -H "Accept: application/json" | grep -o '"type":"[A-Z]*"' | cut -d'"' -f4)
   if [ "$type" = "A" ]; then
     content=$ip
-  else
+  elif [ -n "$type" ]; then
     content=hoverflylagoons$1.westeurope.cloudapp.azure.com
+  else
+    echo "could not read record $record - stopping, old resource groups not deleted"
+    exit 1
   fi
 
   echo "record $record ($type) -> $content"
-  curl -s $url -H "Authorization: Bearer ${token}" -H "Accept: application/json" -H "Content-Type: application/json" \
-    -X PATCH -d "{\"content\": \"$content\", \"ttl\": 60}"
+  # -f makes curl fail on an HTTP error so we stop before deleting anything
+  if ! curl -sf $url -H "Authorization: Bearer ${token}" -H "Accept: application/json" -H "Content-Type: application/json" \
+    -X PATCH -d "{\"content\": \"$content\", \"ttl\": 60}"; then
+    echo "DNS update failed for record $record - stopping, old resource groups not deleted"
+    exit 1
+  fi
   echo ""
 done
 
-# delete old resource groups
+# both DNS records updated - delete old resource groups (async)
 for rgtodel in $(az group list --query "[?starts_with(name, 'HoverflyLagoons')].name" --output tsv); do
   if [ "$rgtodel" != "$rg" ]; then
     echo "deleting $rgtodel"
