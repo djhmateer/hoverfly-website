@@ -33,6 +33,7 @@ echo "== memory pressure today (%smem, %fmem)"; sar -q MEM | tail -4
 echo "== worst minute for memory pressure"; sar -q MEM | grep -v -e Average -e "^$" | sort -k5 -gr | head -2
 echo "== php-fpm at max_children"; sudo grep -c "max_children" /var/log/php8.5-fpm.log
 echo "== nginx 5xx since log rotated (daily)"; sudo awk "\$9 ~ /^5/" /var/log/nginx/access.log | wc -l
+echo "== fail2ban (currently / total banned)"; for j in sshd wordpress; do sudo fail2ban-client status $j | grep -i banned; done
 echo "== biggest processes"; ps -eo rss,comm --sort=-rss | head -6'
 ```
 
@@ -48,10 +49,11 @@ What is normal and when to act:
 | Swap used | under ~300 MB | steadily over 500 MB |
 | `sar -W` pswpin/s, pswpout/s | near 0 | regularly over ~10 |
 | OOM kills | none | any |
-| Reboots (`--list-boots`) | only ones you did | any you didn't |
+| Reboots (`--list-boots`) | ones you did, or at 04:00 UTC after an update (unattended-upgrades) | any other time |
 | php-fpm `max_children` warnings | 0 | rising each day |
 | nginx 5xx | 0 | more than a handful |
 | Disk `/` | ~20% | over 80% |
+| fail2ban jails (`sshd`, `wordpress`) | both listed with bans | `status` errors (jail not running) |
 
 Memory pressure is the main signal: swap in use with ~0% pressure is just idle pages parked on disk and is fine.
 If memory is the problem, change `--size` in `infra/infra.azcli` to `Standard_B2pls_v2` (4 GB, same Arm image) and rebuild.
@@ -88,8 +90,11 @@ sudo rm -rf /var/www/html && sudo tar xzf ~/wp-files-<timestamp>.tgz -C /var/www
 
 ## Let's Encrypt rate limit
 
-Each `infra/infra.azcli` build gets a new certificate for `hoverflylagoons.co.uk` + `www`. Let's Encrypt allows
-5 certificates for the same set of names per 7 days. Check how many were issued recently before rebuilding:
+`infra/infra.azcli` copies the live VM's `/etc/letsencrypt` (cert, key, renewal config) to the new VM, so a
+rebuild does not request a new certificate. The local copy (`backup/live-letsencrypt-<ts>.tgz`, which holds the
+private key and DNSimple token) is deleted once uploaded. The build runs `certbot renew --dry-run` to prove
+renewal works on the new VM. A new one is only issued at renewal, about 30 days before expiry. Let's Encrypt allows
+5 certificates for the same set of names per 7 days. To see how many were issued recently:
 
 ```bash
 curl -s 'https://api.certspotter.com/v1/issuances?domain=hoverflylagoons.co.uk&include_subdomains=true&expand=dns_names&expand=issuer' \

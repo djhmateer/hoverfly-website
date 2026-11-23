@@ -2,16 +2,19 @@
 
 # Builds the hoverflylagoons.co.uk WordPress webserver on Ubuntu 26.04
 # Run by infra.azcli via az vm run-command (runs as root)
-# Expects /home/dave/dnsimpletoken.txt, live-db.sql.gz and live-files.tgz in /home/dave (scp'd by infra.azcli)
+# Expects /home/dave/dnsimpletoken.txt, live-db.sql.gz, live-files.tgz and live-letsencrypt.tgz in /home/dave (scp'd by infra.azcli)
 
 set -x
 
 # daily unattended security upgrades
+# reboot at 04:00 UTC only when an update needs it (/var/run/reboot-required), eg a new kernel
 cat <<EOT > /etc/apt/apt.conf.d/20auto-upgrades
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Download-Upgradeable-Packages "1";
 APT::Periodic::AutocleanInterval "7";
 APT::Periodic::Unattended-Upgrade "1";
+Unattended-Upgrade::Automatic-Reboot "true";
+Unattended-Upgrade::Automatic-Reboot-Time "04:00";
 EOT
 
 # 2GB swap file - the VM only has 1GB RAM and no temp disk
@@ -24,8 +27,8 @@ echo '/swapfile none swap sw 0 0' >> /etc/fstab
 apt-get update -y
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 
-# nginx, php-fpm and mysql from the Ubuntu archive
-DEBIAN_FRONTEND=noninteractive apt-get install -y nginx mysql-server ufw \
+# nginx, php-fpm, mysql and fail2ban from the Ubuntu archive
+DEBIAN_FRONTEND=noninteractive apt-get install -y nginx mysql-server ufw fail2ban \
   php-fpm php-mysql php-curl php-gd php-mbstring php-xml php-intl php-zip php-imagick
 
 # sysstat (already on the image): sample every minute instead of every 10 so short memory spikes show,
@@ -55,25 +58,33 @@ if ! dpkg --compare-versions "$nginx_version" ge 1.28.3-2ubuntu1.13; then
   exit 1
 fi
 
-# SSL cert from Let's Encrypt via DNS-01 challenge on DNSimple
-# works before DNS points here, and the certbot snap's systemd timer auto renews
+# SSL cert from Let's Encrypt (DNS-01 challenge on DNSimple), copied from the live VM
+# so a rebuild doesn't request a new cert. The renewal config comes with it, so the
+# certbot snap's systemd timer renews it here (DNS-01 works before DNS points here).
+# Original request, if ever starting from scratch:
+# certbot certonly --non-interactive --agree-tos --register-unsafely-without-email \
+#   --dns-dnsimple --dns-dnsimple-credentials /etc/letsencrypt/dnsimple.ini \
+#   -d hoverflylagoons.co.uk -d www.hoverflylagoons.co.uk \
+#   --deploy-hook "systemctl reload nginx"
 snap wait system seed.loaded
 snap install --classic certbot
 snap set certbot trust-plugin-with-root=ok
 snap install certbot-dns-dnsimple
 
+tar xzf /home/dave/live-letsencrypt.tgz -C /etc
+rm /home/dave/live-letsencrypt.tgz
+
+# token from secrets/ overwrites the copied one, in case it has been rotated
 # set +x so the token isn't echoed into the run-command output
 set +x
-mkdir -p /etc/letsencrypt
 echo "dns_dnsimple_token = $(head -n 1 /home/dave/dnsimpletoken.txt)" > /etc/letsencrypt/dnsimple.ini
 chmod 600 /etc/letsencrypt/dnsimple.ini
 rm /home/dave/dnsimpletoken.txt
 set -x
 
-certbot certonly --non-interactive --agree-tos --register-unsafely-without-email \
-  --dns-dnsimple --dns-dnsimple-credentials /etc/letsencrypt/dnsimple.ini \
-  -d hoverflylagoons.co.uk -d www.hoverflylagoons.co.uk \
-  --deploy-hook "systemctl reload nginx"
+# prove renewal works here (snap, dnsimple plugin, token) - uses the Let's Encrypt
+# staging server, so no real cert is issued and it doesn't count towards rate limits
+certbot renew --dry-run
 
 # repo for nginx.conf, php ini and the restore script
 git clone https://github.com/djhmateer/hoverfly-website.git /gitsource
@@ -122,3 +133,34 @@ ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
 ufw --force enable
+
+# fail2ban: 5 failures in 10 minutes = banned for 1 hour (from that jail's ports)
+# sshd jail reads the journal (Ubuntu's default backend), wordpress jail reads the nginx log.
+# A failed WordPress login returns 200, a successful one 302 - so only 200s count.
+# check: sudo fail2ban-client status sshd   /   sudo fail2ban-client status wordpress
+# unban: sudo fail2ban-client set wordpress unbanip <ip>
+cat <<'EOT' > /etc/fail2ban/filter.d/wordpress.conf
+[Definition]
+failregex = ^<HOST> \S+ \S+ \[[^\]]+\] "POST /+wp-login\.php[^"]*" 200
+ignoreregex =
+EOT
+
+cat <<'EOT' > /etc/fail2ban/jail.local
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+
+[sshd]
+enabled = true
+
+[wordpress]
+enabled  = true
+port     = http,https
+filter   = wordpress
+logpath  = /var/log/nginx/access.log
+backend  = polling
+EOT
+
+systemctl enable fail2ban
+systemctl restart fail2ban

@@ -45,7 +45,16 @@ if ! ssh ${sshopts} ${live} "sudo tar czf - -C /var/www html" > ${livefiles} \
   exit 1
 fi
 
-ls -lh ${livedb} ${livefiles}
+# the live Let's Encrypt cert, key and renewal config - reusing it avoids the
+# duplicate certificate rate limit (5 per 7 days) when rebuilding often
+livecerts=../backup/live-letsencrypt-${ts}.tgz
+if ! ssh ${sshopts} ${live} "sudo tar czf - -C /etc letsencrypt" > ${livecerts} \
+   || ! gzip -t ${livecerts}; then
+  echo "Could not copy the live certs - stopping"
+  exit 1
+fi
+
+ls -lh ${livedb} ${livefiles} ${livecerts}
 
 set -x
 
@@ -147,7 +156,7 @@ az vm create \
     # --size Standard_B2pls_v2 # £21.08pm (2 vCPU Arm, 4GB) - next step up if 1GB struggles
     # --size Standard_B1ms # £13.17pm (1 vCPU Intel, 2GB) - B-series v1, retires 15/11/2028, needs the x64 image
 
-# copy the dnsimple token (for certbot DNS-01) and the live database and files to the VM
+# copy the dnsimple token (for certbot DNS-01) and the live database, files and certs to the VM
 # create-webserver.sh moves the token into /etc/letsencrypt and deletes this copy
 # I have seen scp timeout so retry until it works
 host=dave@${dnsname}.westeurope.cloudapp.azure.com
@@ -163,10 +172,15 @@ n=0
 until [ "$n" -ge 5 ]
 do
    scp -o StrictHostKeyChecking=no ${livedb} ${host}:/home/dave/live-db.sql.gz \
-     && scp -o StrictHostKeyChecking=no ${livefiles} ${host}:/home/dave/live-files.tgz && break
+     && scp -o StrictHostKeyChecking=no ${livefiles} ${host}:/home/dave/live-files.tgz \
+     && scp -o StrictHostKeyChecking=no ${livecerts} ${host}:/home/dave/live-letsencrypt.tgz && break
    n=$((n+1))
    sleep 15
 done
+
+# the cert copy holds the private key and DNSimple token, and is no use as a backup
+# (a cert can always be reissued), so don't leave it in ../backup
+rm ${livecerts}
 
 # installs nginx, php, mysql, certbot cert and restores the live database and files
 az vm run-command invoke \
